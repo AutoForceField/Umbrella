@@ -9,15 +9,44 @@ to 'freud' Box objects.
 import freud as _freud
 import numpy as _np
 from ase.atoms import Atoms as _Atoms
+from ase.cell import Cell as _Cell
 
 from umbrella.assembly.rotation import PrismRotation as _PrismRotation
 
 
 def get_freud_box(
+    cell: _np.ndarray | _Cell,
+) -> _freud.box.Box:
+    """
+    Get 'freud' Box object from an ASE cell object or arbitrary 3x3 array.
+
+    Args:
+        cell (numpy.ndarray or ase.Cell): ASE cell object or arbitrary 3x3 array.
+
+    Returns:
+        freud.box.Box: 'freud' Box object.
+    """
+
+    # frued Box is defined by Lx, Ly, Lz, xy, xz, yz
+    # Lx, Ly, Lz are the lengths of the box edges
+    # PrismRotation rotates the cell such that upper
+    # triangular part of the array is zero.
+    prism_cell = _PrismRotation(cell)(cell)
+    assert _np.allclose(prism_cell.flat[[1, 2, 5]], 0)
+
+    Lx, Ly, Lz, xyLy, xzLz, yzLz = prism_cell.flat[[0, 4, 8, 3, 6, 7]]
+    xy = xyLy / Ly
+    xz = xzLz / Lz
+    yz = yzLz / Lz
+    box = _freud.box.Box(Lx=Lx, Ly=Ly, Lz=Lz, xy=xy, xz=xz, yz=yz)
+    return box
+
+
+def get_freud_system(
     atoms: _Atoms, wrap: bool = False
 ) -> tuple[_freud.box.Box, _np.ndarray]:
     """
-    Get 'freud' Box object from atomic structure.
+    Get 'freud' system (Box, positions) from ase ASE atomic structure.
 
     Args:
         atoms (ase.Atoms): Atomic structure; must be periodic.
@@ -30,20 +59,9 @@ def get_freud_box(
 
     assert all(atoms.get_pbc()), "Atomic structure must be periodic."
 
-    # frued Box is defined by Lx, Ly, Lz, xy, xz, yz
-    # Lx, Ly, Lz are the lengths of the box edges
-    # PrismRotation rotates the cell such that upper
-    # triangular part of the array is zero.
-    prism_cell = _PrismRotation(atoms.cell)(atoms.cell)
-    assert _np.allclose(prism_cell.flat[[1, 2, 5]], 0)
+    box = get_freud_box(atoms.cell)
 
-    Lx, Ly, Lz, xyLy, xzLz, yzLz = prism_cell.flat[[0, 4, 8, 3, 6, 7]]
-    xy = xyLy / Ly
-    xz = xzLz / Lz
-    yz = yzLz / Lz
-    box = _freud.box.Box(Lx=Lx, Ly=Ly, Lz=Lz, xy=xy, xz=xz, yz=yz)
-
-    # Since the box is rotated, the atomic positions
+    # Since the box maybe rotated, the atomic positions
     # must be rotated as well. Although, scaled positions
     # are not affected by the rotation.
     # Fortunately, 'freud' Box object can be created from
