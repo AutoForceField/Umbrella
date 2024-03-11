@@ -89,6 +89,7 @@ class PrismRotation(Rotation):
                 vector for a right-handed system
         """
         # TODO: raise error if not right-handed
+        assert basis.shape == (3, 3), f"{basis}"
         a, b, c = basis
         a_ = a / norm(a)
         ab = cross(a, b)
