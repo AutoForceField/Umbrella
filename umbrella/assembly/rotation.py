@@ -38,6 +38,7 @@ __all__ = [
     "get_rotation_to_prism_basis",
     "get_volume_of_parallelepiped",
     "is_right_handed",
+    "is_prism",
 ]
 
 TypeVector = tuple[float, float, float]
@@ -168,6 +169,23 @@ def is_right_handed(
     return get_volume_of_parallelepiped(abc) > 0
 
 
+def is_prism(abc: tuple[TypeVector, TypeVector, TypeVector] | np.ndarray) -> bool:
+    """
+    Check if the base vectors define a prism.
+
+    parameters
+    ----------
+    abc: (a, b, c) the base vectors
+
+    returns
+    -------
+    True if the base vectors define a prism, False otherwise
+
+    """
+    abc = np.asarray(abc)
+    return np.allclose(abc.flat[[1, 2, 5]], 0)
+
+
 def test_rotation_about_axis() -> bool:
     axis = (0.0, 0.0, 1.0)
     angle = pi / 2
@@ -202,6 +220,8 @@ def test_rotation_to_prism_basis() -> bool:
     for _ in range(100):
         basis = np.random.uniform(size=(3, 3))
         basis.flat[[1, 2, 5]] = 0
+        assert is_right_handed(basis)
+        assert is_prism(basis)
         rot = get_rotation_to_prism_basis(basis)
         new = apply_rotation(basis, rot)
         assert np.allclose(new.flat[[1, 2, 5]], 0)
