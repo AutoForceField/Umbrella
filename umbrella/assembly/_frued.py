@@ -11,7 +11,7 @@ import numpy as _np
 from ase.atoms import Atoms as _Atoms
 from ase.cell import Cell as _Cell
 
-from umbrella.assembly.rotation import PrismRotation as _PrismRotation
+import umbrella.assembly.rotation as _rotation  # import PrismRotation as _PrismRotation
 
 
 def get_freud_box(
@@ -31,7 +31,8 @@ def get_freud_box(
     # Lx, Ly, Lz are the lengths of the box edges
     # PrismRotation rotates the cell such that upper
     # triangular part of the array is zero.
-    prism_cell = _PrismRotation(cell)(cell)
+    rot = _rotation.get_rotation_to_prism_basis(cell)
+    prism_cell = _rotation.apply_rotation(cell, rot)
     assert _np.allclose(prism_cell.flat[[1, 2, 5]], 0)
 
     Lx, Ly, Lz, xyLy, xzLz, yzLz = prism_cell.flat[[0, 4, 8, 3, 6, 7]]
