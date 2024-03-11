@@ -32,7 +32,7 @@ def get_freud_box(
     # PrismRotation rotates the cell such that upper
     # triangular part of the array is zero.
     rot = _rotation.get_rotation_to_prism_basis(cell)
-    prism_cell = _rotation.apply_rotation(cell, rot)
+    prism_cell = _rotation.apply_rotation(rot, cell)
     assert _np.allclose(prism_cell.flat[[1, 2, 5]], 0)
 
     Lx, Ly, Lz, xyLy, xzLz, yzLz = prism_cell.flat[[0, 4, 8, 3, 6, 7]]

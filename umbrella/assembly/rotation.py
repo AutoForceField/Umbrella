@@ -1,6 +1,6 @@
 """
-Row convention:
-    The x, y, z coordinates of vectors in 3d
+Coordinate conventions:
+    The (x, y, z) coordinates of vectors in 3d
     are assumed to be stored in rows of a numpy
     array with the following layout:
     R = (
@@ -23,6 +23,27 @@ Row convention:
     A rotation is typically obtained from
     `get_rotation_...` functions.
 
+Basis conventions:
+    The (a, b, c) base vectors of a generic
+    parallelepiped is assumed to be stored as
+    abc = (
+            (ax, ay, az),
+            (bx, by, bz),
+            (cx, cy, cz)
+        )
+    While e.g. ASE has no constraints on the
+    base vectors, other packages such as LAMMPS,
+    frued, etc. have certain constraints.
+    We define the following conventions:
+
+        Right-handedness:
+            a . (b x c) > 0
+
+        Prism:
+            Right-handedness & ay = az = bz = 0
+
+        Transposed Prism:
+            Right-handedness & bx = cx = cy = 0
 
 """
 from __future__ import annotations
@@ -37,18 +58,32 @@ __all__ = [
     "get_rotation_about_axis",
     "get_rotation_to_prism_basis",
     "get_volume_of_parallelepiped",
+    "get_prism_from_basis",
+    "get_basis_from_prism",
     "is_right_handed",
     "is_prism",
 ]
 
 TypeVector = tuple[float, float, float]
+TypeBasis = typing.Union[tuple[TypeVector, TypeVector, TypeVector], np.ndarray]
+TypePrism = tuple[float, float, float, float, float, float]
 
 
 def apply_rotation(
-    coordinates: typing.Sequence[TypeVector] | np.ndarray, rot: np.ndarray
+    rot: np.ndarray,
+    coordinates: typing.Sequence[TypeVector] | np.ndarray,
 ) -> np.ndarray:
     """
     Apply a rotation to a sequence of coordinates.
+
+    parameters
+    ----------
+    rot: a 3x3 rotation matrix
+    coordinates: a sequence of coordinates
+
+    returns
+    -------
+    a sequence of rotated coordinates
     """
     coo = np.asarray(coordinates)
     return coo @ rot.T
@@ -84,9 +119,7 @@ def get_rotation_about_axis(axis: TypeVector, angle: float) -> np.ndarray:
     return rot
 
 
-def get_rotation_to_prism_basis(
-    abc: tuple[TypeVector, TypeVector, TypeVector] | np.ndarray
-) -> np.ndarray:
+def get_rotation_to_prism_basis(abc: TypeBasis) -> np.ndarray:
     """
     Creates a rotation matrix which maps 3 right-handed
     generic base vectors a, b, c into new ones
@@ -132,7 +165,7 @@ def get_rotation_to_prism_basis(
 
 
 def get_volume_of_parallelepiped(
-    abc: tuple[TypeVector, TypeVector, TypeVector] | np.ndarray
+    abc: TypeBasis,
 ) -> float:
     """
     Get the volume of a parallelepiped defined by 3 vectors.
@@ -152,7 +185,7 @@ def get_volume_of_parallelepiped(
 
 
 def is_right_handed(
-    abc: tuple[TypeVector, TypeVector, TypeVector] | np.ndarray
+    abc: TypeBasis,
 ) -> bool:
     """
     Check if the base vectors are right-handed.
@@ -169,7 +202,7 @@ def is_right_handed(
     return get_volume_of_parallelepiped(abc) > 0
 
 
-def is_prism(abc: tuple[TypeVector, TypeVector, TypeVector] | np.ndarray) -> bool:
+def is_prism(abc: TypeBasis) -> bool:
     """
     Check if the base vectors define a prism.
 
@@ -184,6 +217,46 @@ def is_prism(abc: tuple[TypeVector, TypeVector, TypeVector] | np.ndarray) -> boo
     """
     abc = np.asarray(abc)
     return np.allclose(abc.flat[[1, 2, 5]], 0)
+
+
+def get_prism_from_basis(
+    abc: TypeBasis,
+) -> TypePrism:
+    """
+    Get the parameters of a prism defined by 3 base vectors.
+
+    parameters
+    ----------
+    abc: (a, b, c) the base vectors
+
+    returns
+    -------
+    lx, ly, lz, xy, xz, yz
+    """
+    assert is_prism(abc)
+    abc = np.asarray(abc)
+    return abc.flat[[0, 4, 8, 3, 6, 7]]
+
+
+def get_basis_from_prism(
+    param: TypePrism,
+) -> TypeBasis:
+    """
+    Get the base vectors of a prism defined by its parameters.
+
+    parameters
+    ----------
+    lx, ly, lz, xy, xz, yz
+
+    returns
+    -------
+    (a, b, c) the base vectors
+    """
+    lx, ly, lz, xy, xz, yz = param
+    a = (lx, 0, 0)
+    b = (xy, ly, 0)
+    c = (xz, yz, lz)
+    return a, b, c
 
 
 def test_rotation_about_axis() -> bool:
@@ -208,10 +281,10 @@ def test_rotation_about_axis() -> bool:
     )
     # one at a time
     for a, b in zip(xyz_in, xyz_out):
-        bb = apply_rotation(a, rot)
+        bb = apply_rotation(rot, a)
         assert np.allclose(bb, b)
     # collective
-    out = apply_rotation(xyz_in, rot)
+    out = apply_rotation(rot, xyz_in)
     assert np.allclose(out, xyz_out)
     return True
 
@@ -223,7 +296,7 @@ def test_rotation_to_prism_basis() -> bool:
         assert is_right_handed(basis)
         assert is_prism(basis)
         rot = get_rotation_to_prism_basis(basis)
-        new = apply_rotation(basis, rot)
+        new = apply_rotation(rot, basis)
         assert np.allclose(new.flat[[1, 2, 5]], 0)
         assert np.allclose(basis @ basis.T, new @ new.T)
     return True
