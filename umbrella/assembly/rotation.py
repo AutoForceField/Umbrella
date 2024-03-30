@@ -40,10 +40,10 @@ Basis conventions:
             a . (b x c) > 0
 
         Prism:
-            Right-handedness & ay = az = bz = 0
+            ay = az = bz = 0
 
         Transposed Prism:
-            Right-handedness & bx = cx = cy = 0
+            bx = cx = cy = 0
 
 """
 from __future__ import annotations
@@ -67,11 +67,12 @@ __all__ = [
 TypeVector = tuple[float, float, float]
 TypeBasis = typing.Union[tuple[TypeVector, TypeVector, TypeVector], np.ndarray]
 TypePrism = tuple[float, float, float, float, float, float]
+TypePositions = typing.Union[typing.Sequence[TypeVector], np.ndarray]
 
 
 def apply_rotation(
     rot: np.ndarray,
-    coordinates: typing.Sequence[TypeVector] | np.ndarray,
+    coordinates: TypePositions,
 ) -> np.ndarray:
     """
     Apply a rotation to a sequence of coordinates.
@@ -85,8 +86,7 @@ def apply_rotation(
     -------
     a sequence of rotated coordinates
     """
-    coo = np.asarray(coordinates)
-    return coo @ rot.T
+    return np.asarray(coordinates) @ rot.T
 
 
 def get_rotation_about_axis(axis: TypeVector, angle: float) -> np.ndarray:
@@ -142,8 +142,10 @@ def get_rotation_to_prism_basis(abc: TypeBasis) -> np.ndarray:
     """
 
     # raise error if not right-handed
+    # because the following algorithm
+    # assumes right-handedness
     if not is_right_handed(abc):
-        raise ValueError("The base vectors are not right-handed.")
+        raise NotImplementedError("Only right-handed base vectors are supported")
     a, b, c = np.asarray(abc)
     a_ = a / np.linalg.norm(a)
     ab = np.cross(a, b)
