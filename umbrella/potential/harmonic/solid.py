@@ -1,3 +1,14 @@
+"""
+This module provides a simple harmonic solid calculator for ASE.
+The potential is defined by a list of pairs of atoms and their
+equilibrium bond length and spring constant.
+Note that this is different from the  HarmonicLatticeCalculator
+which uses a reference lattice structure.
+
+A utility function get_harmonic_solid is provided to extract the
+harmonic potentials from the system.
+
+"""
 import typing as typing
 
 import numpy as np
@@ -10,7 +21,7 @@ from matscipy.numpy_tricks import mabincount
 __all__ = [
     "HarmonicSolidPotential",
     "HarmonicSolidCalculator",
-    "get_harmonic_potentials",
+    "get_harmonic_solid",
 ]
 
 
@@ -92,7 +103,7 @@ class HarmonicSolidCalculator(Calculator):
         self.results["free_energy"] = energy
 
 
-def get_harmonic_potentials(
+def get_harmonic_solid(
     atoms: Atoms,
     cutoff: float,
     k_springs: typing.Sequence[float],
@@ -179,7 +190,7 @@ def test_get_harmonic_potentials() -> None:
 
     # sc lattice
     atoms = bulk("X", "sc", 1.0, cubic=True).repeat(4)
-    potentials = get_harmonic_potentials(atoms, 2.0, [1.0, 0.3], 0.01)
+    potentials = get_harmonic_solid(atoms, 2.0, [1.0, 0.3], 0.01)
 
     # - test number of nearest neighbor pairs
     assert potentials[0].i.size / len(atoms) == 6 / 2
@@ -189,7 +200,7 @@ def test_get_harmonic_potentials() -> None:
 
     # bcc lattice
     atoms = bulk("X", "bcc", 1.0, cubic=True).repeat(4)
-    potentials = get_harmonic_potentials(atoms, 2.0, [1.0, 0.3], 0.01)
+    potentials = get_harmonic_solid(atoms, 2.0, [1.0, 0.3], 0.01)
 
     # - test number of nearest neighbor pairs
     assert potentials[0].i.size / len(atoms) == 8 / 2
@@ -202,7 +213,7 @@ def _test_bulk(lattice: str) -> bool:
     from ase.build import bulk
 
     atoms = bulk("X", lattice, 1.0, cubic=True).repeat(4)
-    potentials = get_harmonic_potentials(atoms, 2.0, [1.0, 0.3], 0.01)
+    potentials = get_harmonic_solid(atoms, 2.0, [1.0, 0.3], 0.01)
 
     calc = HarmonicSolidCalculator(
         potentials=potentials,
