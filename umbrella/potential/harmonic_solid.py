@@ -174,44 +174,68 @@ def test_pair(verbose: bool = False) -> None:
     assert result
 
 
-def test_bulk() -> None:
+def test_get_harmonic_potentials() -> None:
     from ase.build import bulk
 
+    # sc lattice
     atoms = bulk("X", "sc", 1.0, cubic=True).repeat(4)
     potentials = get_harmonic_potentials(atoms, 2.0, [1.0, 0.3], 0.01)
 
-    # test number of nearest neighbor pairs
+    # - test number of nearest neighbor pairs
     assert potentials[0].i.size / len(atoms) == 6 / 2
 
-    # test number of next nearest neighbor pairs
+    # - test number of next nearest neighbor pairs
     assert potentials[1].i.size / len(atoms) == 12 / 2
+
+    # bcc lattice
+    atoms = bulk("X", "bcc", 1.0, cubic=True).repeat(4)
+    potentials = get_harmonic_potentials(atoms, 2.0, [1.0, 0.3], 0.01)
+
+    # - test number of nearest neighbor pairs
+    assert potentials[0].i.size / len(atoms) == 8 / 2
+
+    # - test number of next nearest neighbor pairs
+    assert potentials[1].i.size / len(atoms) == 6 / 2
+
+
+def _test_bulk(lattice: str) -> bool:
+    from ase.build import bulk
+
+    atoms = bulk("X", lattice, 1.0, cubic=True).repeat(4)
+    potentials = get_harmonic_potentials(atoms, 2.0, [1.0, 0.3], 0.01)
 
     calc = HarmonicSolidCalculator(
         potentials=potentials,
     )
-    atoms.calc = calc
 
     # test the forces
+    atoms.rattle(0.1)
+    atoms.calc = calc
     f = atoms.get_forces()
     fn = calc.calculate_numerical_forces(atoms)
-    result = np.allclose(f, fn, atol=1e-6)
-    if not result:
+    result1 = np.allclose(f, fn, atol=1e-6)
+    if not result1:
         print("Forces do not match (test_bulk)")
         print(f"Analytical forces: \n {f}")
         print(f"Numerical forces: \n {fn}")
-    assert result
 
     # test the stress
     s = atoms.get_stress()
     sn = calc.calculate_numerical_stress(atoms)
-    result = np.allclose(s, sn, atol=1e-6)
-    if not result:
+    result2 = np.allclose(s, sn, atol=1e-6)
+    if not result2:
         print("Stress do not match (test_bulk)")
         print(f"Analytical stress: \n {s}")
         print(f"Numerical stress: \n {sn}")
-    assert result
+    return result1 and result2
+
+
+def test_bulk() -> None:
+    for lattice in ["sc", "bcc", "fcc"]:
+        assert _test_bulk(lattice)
 
 
 if __name__ == "__main__":
     test_pair()
+    test_get_harmonic_potentials()
     test_bulk()
